@@ -81,8 +81,8 @@ def load(ckpt_dir, net, optim):
 # MNIST DATA 불러오기
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean = (0.5, ), std = (0.5, ))])
 
-dataset = datasets.MNIST(download = True, root='./', train = True, transform = transform)
-loader = DataLoader(dataset, batch_size = batch_size, shuffle = True, num_workers = 0)
+dataset = datasets.MNIST(download = True, root='./', train = False, transform = transform)
+loader = DataLoader(dataset, batch_size = batch_size, shuffle = False, num_workers = 0)
 
 num_data = len(loader.dataset)
 num_batch = np.ceil(num_data / batch_size)
@@ -99,9 +99,11 @@ optim = torch.optim.Adam(params, lr=lr)
 
 writer = SummaryWriter(log_dir = log_dir)
 
-# 트레이닝 시작하기
-for epoch in range(1, num_epoch+1):
-    net.train()
+net, optim = load(ckpt_dir=ckpt_dir, net=net, optim=optim)
+
+# 테스트 시작하기
+with torch.no_grad():
+    net.eval()
 
     loss_arr = []
     acc_arr = []
@@ -113,23 +115,12 @@ for epoch in range(1, num_epoch+1):
         output = net(input)
         pred = fn_pred(output)
 
-        optim.zero_grad()
-        
         loss = fn_loss(output, label)
         acc = fn_acc(pred, label)
-
-        loss.backward()
         
         optim.step()
 
         loss_arr += [loss.item()]
         acc_arr += [acc.item()]
 
-        print('TRAIN: EPOCH %04d/%04d | BATCH %04d/%04d | LOSS: %.4f | ACC %.4f' % (epoch, num_epoch, batch, num_batch, np.mean(loss_arr), np.mean(acc_arr)))
-
-    writer.add_scalar('loss', np.mean(loss_arr), epoch)
-    writer.add_scalar('acc', np.mean(acc_arr), epoch)
-
-    save(ckpt_dir = ckpt_dir, net = net, optim = optim, epoch = epoch)
-    
-writer.close()
+        print('TEST: BATCH %04d/%04d | LOSS: %.4f | ACC %.4f' % (batch, num_batch, np.mean(loss_arr), np.mean(acc_arr)))
