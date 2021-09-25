@@ -7,7 +7,7 @@ import torch.nn as nn
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, transform=None):
         self.data_dir = data_dir
-        self.transforms = transforms
+        self.transforms = transform
 
         lst_data = os.listdir(self.data_dir)
 
