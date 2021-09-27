@@ -34,9 +34,22 @@ parser.add_argument("--result_dir", default="./results", type=str, dest="result_
 parser.add_argument("--mode", default="train", type=str, dest="mode") # 'train' or 'test'
 parser.add_argument("--train_continue", default="off", dest="train_continue") # 'off' or ''
 
+parser.add_argument("--task", default="denoising", choices=["denoising", "inpaining", "super_resolution"], type=str, dest="task")
+parser.add_argument("--opts", nargs='+', default=["random", 30.0], dest="opts")
+
+parser.add_argument("--ny", default=320, type=int, dest="ny")
+parser.add_argument("--nx", default=480, type=int, dest="nx")
+parser.add_argument("--nch", default=3, type=int, dest="nch")
+parser.add_argument("--nker", default=64, type=int, dest="nker")
+
+parser.add_argument("--network", default="unet", choices=["unet", "resnet", "autoencoder"], type=str, dest="network")
+
 args = parser.parse_args()
 
 ## 트레이닝 파라미터 설정하기
+mode = args.mode
+train_continue = args.train_continue
+
 lr = args.lr
 batch_size = args.batch_size
 num_epoch = args.num_epoch
@@ -46,8 +59,15 @@ ckpt_dir = args.ckpt_dir
 log_dir = args.log_dir
 result_dir = args.result_dir
 
-mode = args.mode
-train_continue = args.train_continue
+task = args.task
+opts = [args.opts[0], np.asarray(args.opts[1:].astype(np.float))]
+
+ny = args.ny
+nx = args.nx
+nch = args.nch
+nker = args.nker
+
+network = args.network
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -60,20 +80,29 @@ print("log dir: %s" % log_dir)
 print("result dir: %s" % result_dir)
 print("mode: %s" % mode)
 print("train continue: %s" % train_continue)
+print("network: %s" % network)
 
 ## 디렉토리 생성하기
+result_dir_train = os.path.join(result_dir, 'train')
+result_dir_val = os.path.join(result_dir, 'val')
+result_dir_test = os.path.join(result_dir, 'test')
+
 if not os.path.exists(result_dir):
-    os.makedir(os.path.join(result_dir, 'png'))
-    os.makedir(os.path.join(result_dir, 'numpy'))
+    os.makedir(os.path.join(result_dir_train, 'png'))
+    os.makedir(os.path.join(result_dir_val, 'png'))
+
+    os.makedir(os.path.join(result_dir_test, 'png'))
+    os.makedir(os.path.join(result_dir_test, 'numpy'))
 
 ## 네트워크 학습하기
 if mode == 'train':
-    transform = transforms.Compose([Normalization(mean=0.5, std=0.5), RandomFlip(), ToTensor()])
+    transform_train = transforms.Compose([Normalization(mean=0.5, std=0.5), RandomFlip(), ToTensor()])
+    transform_val = transforms.Compose([Normalization(mean=0.5, std=0.5), ToTensor()])
 
-    dataset_train = Dataset(data_dir=os.path.join(data_dir, 'train'), transform=transform)
+    dataset_train = Dataset(data_dir=os.path.join(data_dir, 'train'), transform=transform_train)
     loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=8)
 
-    dataset_val = Dataset(data_dir=os.path.join(data_dir, 'val'), transform=transform)
+    dataset_val = Dataset(data_dir=os.path.join(data_dir, 'val'), transform=transform_val)
     loader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=False, num_workers=8)
 
     ## 그밖에 부수적인 variables 설정하기
