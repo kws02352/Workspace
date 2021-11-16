@@ -96,13 +96,13 @@ if not os.path.exists(result_dir):
 
 ## 네트워크 학습하기
 if mode == 'train':
-    transform_train = transforms.Compose([Normalization(mean=0.5, std=0.5), RandomFlip(), ToTensor()])
-    transform_val = transforms.Compose([Normalization(mean=0.5, std=0.5), ToTensor()])
+    transform_train = transforms.Compose([RandomCrop(shape=(ny, nx), Normalization(mean=0.5, std=0.5), RandomFlip(), ToTensor()])
+    transform_val = transforms.Compose([RandomCrop(shape=(ny, nx), Normalization(mean=0.5, std=0.5), ToTensor()])
 
-    dataset_train = Dataset(data_dir=os.path.join(data_dir, 'train'), transform=transform_train)
+    dataset_train = Dataset(data_dir=os.path.join(data_dir, 'train'), transform=transform_train, task=task, opts=opts)
     loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=8)
 
-    dataset_val = Dataset(data_dir=os.path.join(data_dir, 'val'), transform=transform_val)
+    dataset_val = Dataset(data_dir=os.path.join(data_dir, 'val'), transform=transform_val, task=task, opts=opts)
     loader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=False, num_workers=8)
 
     ## 그밖에 부수적인 variables 설정하기
@@ -112,9 +112,9 @@ if mode == 'train':
     num_batch_train = np.ceil(num_data_train / batch_size)
     num_batch_val = np.ceil(num_data_val / batch_size)
 else:
-    transform = transforms.Compose([Normalization(mean=0.5, std=0.5), ToTensor()])
+    transform_test = transforms.Compose([RandomCrop(shape=(ny, nx), Normalization(mean=0.5, std=0.5), ToTensor()])
 
-    dataset_test = Dataset(data_dir=os.path.join(data_dir, 'train'), transform=transform)
+    dataset_test = Dataset(data_dir=os.path.join(data_dir, 'train'), transform=transform_test, task=task, opts=opts)
     loader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, num_workers=8)
 
     ## 그밖에 부수적인 variables 설정하기
@@ -123,7 +123,10 @@ else:
     num_batch_test = np.ceil(num_data_test / batch_size)
 
 ## 네트워크 생성하기
-net = UNet().to(device)
+if network == "unet":
+    net = UNet().to(device)
+# elif network == "resnet":
+#     net = ResNet().to(device)
 
 ## 손실함수 정의하기
 fn_loss = nn.BCEWithLogitsLoss().to(device)

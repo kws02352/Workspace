@@ -83,9 +83,9 @@ if mode == 'train':
     num_batch_train = np.ceil(num_data_train / batch_size)
     num_batch_val = np.ceil(num_data_val / batch_size)
 else:
-    transform = transforms.Compose([Normalization(mean=0.5, std=0.5), ToTensor()])
+    transform_test = transforms.Compose([Normalization(mean=0.5, std=0.5), ToTensor()])
 
-    dataset_test = Dataset(data_dir=os.path.join(data_dir, 'train'), transform=transform)
+    dataset_test = Dataset(data_dir=os.path.join(data_dir, 'train'), transform=transform_test)
     loader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, num_workers=8)
 
     ## 그밖에 부수적인 variables 설정하기

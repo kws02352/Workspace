@@ -47,7 +47,6 @@ class ToTensor(object):
     def __call__(self, data):
         label, input = data['label'], data['input']
 
-        label = label.transpose((2, 0, 1)).astype(np.float32)
         input = input.transpose((2, 0, 1)).astype(np.float32)
 
         data = {'label': torch.from_numpy(label), 'input': torch.from_numpy(input)}
@@ -62,6 +61,7 @@ class Normalization(object):
     def __call__(self, data):
         label, input = data['label'], data['input']
 
+        label = (label - self.mean) / self.std
         input = (input - self.mean) / self.std
         
         data = {'label': label, 'input': input}
