@@ -124,12 +124,13 @@ else:
 
 ## 네트워크 생성하기
 if network == "unet":
-    net = UNet().to(device)
+    net = UNet(nch=nch, nker=nker, norm='bnorm').to(device)
 # elif network == "resnet":
-#     net = ResNet().to(device)
+#     net = ResNet(nch=nch, nker=nker, norm='bnorm').to(device)
 
 ## 손실함수 정의하기
-fn_loss = nn.BCEWithLogitsLoss().to(device)
+# fn_loss = nn.BCEWithLogitsLoss().to(device)
+fn_loss = nn.MSELoss().to(device)
 
 ## Optimizer 설정하기
 optim = torch.optim.Adam(net.parameters(), lr=lr)
@@ -137,7 +138,7 @@ optim = torch.optim.Adam(net.parameters(), lr=lr)
 ## 그밖의 부수적인 function 설정하기
 fn_tonumpy = lambda x: x.to('cpu').detach().numpy().transpose(0, 2, 3, 1)
 fn_denorm = lambda x, mean, std: (x * std) + mean
-fn_class = lambda x: 1.0 * (x > 0.5)
+# fn_class = lambda x: 1.0 * (x > 0.5)
 
 ## tensorboard 를 사용하기 위한 SummaryWriter 설정
 writer_train = SummaryWriter(log_dir = os.path.join(log_dir, 'train'))
@@ -178,13 +179,22 @@ if mode == 'train':
                 (epoch, num_epoch, batch, num_batch_train, np.mean(loss_arr)))
 
             # Tensorboard 저장하기
-            label = fn_tonumpy(label)
+            label = fn_tonumpy(fn_denorm(label, mean = 0.5, std = 0.5))
             input = fn_tonumpy(fn_denorm(input, mean = 0.5, std = 0.5))
-            output = fn_tonumpy(fn_class(output))
+            output = fn_tonumpy(fn_denorm(output, mean = 0.5, std = 0.5))
 
-            writer_train.add_image('label', label, num_batch_train * (epoch - 1) + batch, dataformats = 'NHWC')
-            writer_train.add_image('input', input, num_batch_train * (epoch - 1) + batch, dataformats = 'NHWC')
-            writer_train.add_image('output', output, num_batch_train * (epoch - 1) + batch, dataformats = 'NHWC')
+            input = np.clip(input, a_min = 0, a_max = 1)
+            output = np.clip(output, a_min = 0, a_max = 1)
+
+            id = num_bach_train * (epoch - 1) + batch
+
+            plt.imsave(os.path.join(result_dir_train, 'png', '%04d_label.png' % id), label[0])
+            plt.imsave(os.path.join(result_dir_train, 'png', '%04d_input.png' % id), input[0])
+            plt.imsave(os.path.join(result_dir_train, 'png', '%04d_output.png' % id), output[0])
+
+            # writer_train.add_image('label', label, num_batch_train * (epoch - 1) + batch, dataformats = 'NHWC')
+            # writer_train.add_image('input', input, num_batch_train * (epoch - 1) + batch, dataformats = 'NHWC')
+            # writer_train.add_image('output', output, num_batch_train * (epoch - 1) + batch, dataformats = 'NHWC')
 
         writer_train.add_scalar('loss', np.mean(loss_arr), epoch)
 
@@ -208,13 +218,22 @@ if mode == 'train':
                     (epoch, num_epoch, batch, num_batch_val, np.mean(loss_arr)))
                     
                 # Tensorboard 저장하기
-                label = fn_tonumpy(label)
+                label = fn_tonumpy(fn_denorm(label, mean = 0.5, std = 0.5))
                 input = fn_tonumpy(fn_denorm(input, mean = 0.5, std = 0.5))
-                output = fn_tonumpy(fn_class(output))
+                output = fn_tonumpy(fn_denorm(output, mean = 0.5, std = 0.5))
 
-                writer_val.add_image('label', label, num_batch_val * (epoch - 1) + batch, dataformats = 'NHWC')
-                writer_val.add_image('input', input, num_batch_val * (epoch - 1) + batch, dataformats = 'NHWC')
-                writer_val.add_image('output', output, num_batch_val * (epoch - 1) + batch, dataformats = 'NHWC')
+                input = np.clip(input, a_min = 0, a_max = 1)
+                output = np.clip(output, a_min = 0, a_max = 1)
+
+                id = num_bach_train * (epoch - 1) + batch
+
+                plt.imsave(os.path.join(result_dir_val, 'png', '%04d_label.png' % id), label[0])
+                plt.imsave(os.path.join(result_dir_val, 'png', '%04d_input.png' % id), input[0])
+                plt.imsave(os.path.join(result_dir_val, 'png', '%04d_output.png' % id), output[0])
+
+                # writer_val.add_image('label', label, num_batch_val * (epoch - 1) + batch, dataformats = 'NHWC')
+                # writer_val.add_image('input', input, num_batch_val * (epoch - 1) + batch, dataformats = 'NHWC')
+                # writer_val.add_image('output', output, num_batch_val * (epoch - 1) + batch, dataformats = 'NHWC')
 
         writer_val.add_scalar('loss', np.mean(loss_arr), epoch)
 
@@ -248,20 +267,29 @@ else:
                 (batch, num_batch_test, np.mean(loss_arr)))
                     
             # Tensorboard 저장하기
-            label = fn_tonumpy(label)
+            label = fn_tonumpy(fn_denorm(label, mean = 0.5, std = 0.5))
             input = fn_tonumpy(fn_denorm(input, mean = 0.5, std = 0.5))
-            output = fn_tonumpy(fn_class(output))
+            output = fn_tonumpy(fn_denorm(output, mean = 0.5, std = 0.5))
 
             for j in range(label.shape[0]):
                 id = num_batch_test * (batch - 1) * j
 
-                plt.imsave(os.path.join(result_dir, 'png', 'label_%04d.png' % id), label[j].squeeze(), cmap = 'gray')
-                plt.imsave(os.path.join(result_dir, 'png', 'input_%04d.png' % id), input[j].squeeze(), cmap = 'gray')
-                plt.imsave(os.path.join(result_dir, 'png', 'output_%04d.png' % id), output[j].squeeze(), cmap = 'gray')
+                label_ = label[j]
+                input_ = input[j]
+                output_ = output[j]
 
-                np.save(os.path.join(result_dir, 'numpy', 'label_%04d.png' % id), label[j].squeeze())
-                np.save(os.path.join(result_dir, 'numpy', 'input_%04d.png' % id), input[j].squeeze())
-                np.save(os.path.join(result_dir, 'numpy', 'output_%04d.png' % id), output[j].squeeze())
+                np.save(os.path.join(result_dir, 'numpy', '%04d_label.png' % id), label_)
+                np.save(os.path.join(result_dir, 'numpy', '%04d_input.png' % id), input_)
+                np.save(os.path.join(result_dir, 'numpy', '%04d_output.png' % id), output_)
 
-    print("AVERAGE TEST: BATCH %04d / %04d | LOSS %.4f" %
-        (batch, num_batch_test, np.mean(loss_arr)))
+                label_ = fn_tonumpy(label_, mean = 0.5, std = 0.5)
+                input_ = fn_tonumpy(input_, mean = 0.5, std = 0.5)
+                output_ = fn_tonumpy(output_, mean = 0.5, std = 0.5)
+
+                plt.imsave(os.path.join(result_dir, 'png', '%04d_label.png' % id), label_)
+                plt.imsave(os.path.join(result_dir, 'png', '%04d_input.png' % id), input_)
+                plt.imsave(os.path.join(result_dir, 'png', '%04d_output.png' % id), output_)
+
+
+
+    print("AVERAGE TEST: BATCH %04d / %04d | LOSS %.4f" % (batch, num_batch_test, np.mean(loss_arr)))
